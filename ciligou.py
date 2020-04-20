@@ -2,7 +2,7 @@ import requests
 from lxml import etree
 import time
 import random
-from fake_agent import useragent_random as random_agent
+from utils.fake_agent import useragent_random as random_agent
 
 # ciligou.app的种子搜索链接
 

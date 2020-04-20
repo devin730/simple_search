@@ -1,18 +1,19 @@
-#!/usr/bin/python
-# coding: utf-8
-#
-# @module GUI_Ciligou
-#
-# @author: Zengming Deng
-#
-# @description:
-#
-# @since: 2020-04-17 15:23:06
-# -------------------------------
-
+#coding=utf-8
 import wx
+import threading
 from ciligou import SearchCiligou as search
-from utils.thunder import down as StartDownTask
+from thunder import down as StartDownTask
+
+class SearchThread(threading.Thread):
+    def __init__(self, parent=None, search_word=None, updateItem=None):
+        super(SearchThread, self).__init__()  # 继承
+        self.parent = parent
+        self.setDaemon(True)
+        self.word = search_word
+        self.update = updateItem
+    
+    def run(self):
+        search(word=self.word, updateItem=self.update)
 
 
 class gui_main(wx.Frame):
@@ -21,8 +22,8 @@ class gui_main(wx.Frame):
         self.SetTitle("磁力狗搜索桌面版")
         self.items_cnt = 0
         self.itemdict_lists = []
+        self.lock = threading.Lock()
         self.InitUI()
-        self.Centre()
 
     def InitStatusBar(self):
         # *创建一个状态栏，在底部，双栏
@@ -45,26 +46,35 @@ class gui_main(wx.Frame):
         self.tc_input.Bind(wx.EVT_TEXT_ENTER, self.ClickToSearch)
         self.btn_enter = wx.Button(self.panel, label="搜索", size=(70, 30))
         self.btn_enter.Bind(wx.EVT_BUTTON, self.ClickToSearch)
-        self.listct = wx.ListCtrl(self.panel, -1, style=wx.LC_REPORT, size=(-1, 250))
+        self.listct = wx.ListCtrl(self.panel,
+                                  -1,
+                                  style=wx.LC_REPORT,
+                                  size=(-1, 250))
         self.listct.InsertColumn(0, '资源名', wx.LIST_FORMAT_CENTER, width=280)
         self.listct.InsertColumn(1, '大小', wx.LIST_FORMAT_CENTER, width=80)
         self.listct.InsertColumn(2, '链接', wx.LIST_FORMAT_CENTER, width=300)
         self.listct.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnDouClick)
-        vbox.Add(self.text_info, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
-        vbox.Add(self.tc_input, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
+        vbox.Add(self.text_info,
+                 flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP,
+                 border=10)
+        vbox.Add(self.tc_input,
+                 flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP,
+                 border=10)
         vbox.Add(self.btn_enter, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=10)
-        vbox.Add(self.listct, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
+        vbox.Add(self.listct,
+                 flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP,
+                 border=10)
         self.panel.SetSizer(vbox)
         self.SetSize(700, 500)
-    
+        self.Centre()
+
     def ClickToSearch(self, e):
         if self.tc_input.GetValue() == '':
             return
-        self.statusbar.SetStatusText("开始搜索磁力狗链接, 请稍后", 1)
-        search(word=self.tc_input.GetValue(), updateItem=self.UpdateMoiveItem)
-        wx.MessageDialog(None, '搜索完成', 'Message', wx.OK | wx.ICON_HAND)
-        self.statusbar.SetStatusText("搜索磁力狗链接结束", 1)
-        pass
+        else:
+            self.statusbar.SetStatusText("开始搜索磁力狗链接, 请稍后", 1)
+            self.progress_1 = SearchThread(self, search_word=self.tc_input.GetValue(), updateItem=self.UpdateMoiveItem)
+            self.progress_1.start()
 
     def OnDouClick(self, e):
         # 双击条目可以启动下载
@@ -75,6 +85,7 @@ class gui_main(wx.Frame):
         StartDownTask(url=magnet_, name=name_, format_=format_)
 
     def UpdateMoiveItem(self, dict_={}):
+        self.lock.acquire(True)
         if dict_ is None:
             wx.MessageDialog(None, '网络异常', 'Message', wx.OK | wx.ICON_ERROR)
         self.items_cnt += 1
@@ -85,9 +96,11 @@ class gui_main(wx.Frame):
         self.listct.SetItem(index, 2, dict_['url'])
         self.itemdict_lists.append(dict_)
         self.listct.Update()
-        
+        self.lock.release()
+
     def UpdateStatusBar1(self):
-        self.statusbar.SetStatusText("共搜索到%d个条目, 双击可以启动迅雷下载！" % (self.items_cnt), 0)
+        self.statusbar.SetStatusText(
+            "共搜索到%d个条目, 双击可以启动迅雷下载！" % (self.items_cnt), 0)
 
 if __name__ == '__main__':
     app = wx.App()
