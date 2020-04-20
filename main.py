@@ -72,7 +72,7 @@ class gui_main(wx.Frame):
         magnet_ = self.itemdict_lists[itemID]['url']
         format_ = self.itemdict_lists[itemID]['format']
         name_ = self.itemdict_lists[itemID]['title']
-        StartDownTask(url=magnet_, name=name_, format=format_)
+        StartDownTask(url=magnet_, name=name_, format_=format_)
 
     def UpdateMoiveItem(self, dict_={}):
         if dict_ is None:
@@ -93,4 +93,3 @@ if __name__ == '__main__':
     app = wx.App()
     gui_main().Show()
     app.MainLoop()
-
